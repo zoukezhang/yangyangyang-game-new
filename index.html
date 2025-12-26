@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>羊羊羊 - UI完美版</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #c4e99b;
+            background-image: 
+                linear-gradient(45deg, #b6e286 25%, transparent 25%, transparent 75%, #b6e286 75%, #b6e286),
+                linear-gradient(45deg, #b6e286 25%, transparent 25%, transparent 75%, #b6e286 75%, #b6e286);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+            overflow: hidden; 
+            touch-action: none;
+            user-select: none;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        /* 游戏区域 - 显著下移，避免遮挡 */
+        .game-container {
+            position: absolute;
+            top: 140px; /* 关键修改：从80px增加到140px */
+            left: 0;
+            width: 100%;
+            height: calc(100% - 240px);
+            pointer-events: none;
+            /* debug: border: 1px solid red; */
+        }
+
+        /* 标题样式 - 增加一点背景渐变确保文字清晰 */
+        .game-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding-top: 30px;
+            padding-bottom: 20px;
+            text-align: center;
+            z-index: 50;
+            pointer-events: none;
+            background: linear-gradient(to bottom, rgba(196, 233, 155, 0.95), rgba(196, 233, 155, 0));
+        }
+
+        /* 音乐按钮：右上角 */
+        .music-toggle {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            z-index: 100;
+            width: 44px;
+            height: 44px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .music-toggle:active {
+            transform: scale(0.9);
+        }
+
+        /* 卡片 */
+        .card {
+            width: 48px;
+            height: 56px;
+            background: #fff;
+            border-radius: 8px;
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            box-shadow: 0 4px 0 #888, 0 5px 5px rgba(0,0,0,0.3);
+            border: 1px solid #333;
+            cursor: pointer;
+            transition: filter 0.2s;
+            z-index: 10;
+            pointer-events: auto;
+            will-change: transform, left, top;
+        }
+
+        .card.disabled {
+            filter: brightness(0.4) grayscale(0.5);
+            cursor: default;
+        }
+
+        /* 槽位 */
+        .dock-container {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 366px;
+            height: 72px;
+            background: #4a3024;
+            border: 4px solid #2d1c15;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            z-index: 999; 
+            box-sizing: border-box;
+        }
+
+        /* 开始封面 */
+        .start-screen {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(5px);
+            z-index: 5000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 结算弹窗 */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .modal.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .animate-bounce-in {
+            animation: bounceIn 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        @keyframes bounceIn {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+
+        .vanish {
+            animation: vanishAnim 0.2s ease-in forwards;
+        }
+        @keyframes vanishAnim {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0); opacity: 0; }
+        }
+
+        /* 按钮样式 */
+        .btn-primary {
+            background: linear-gradient(to bottom, #4ade80, #22c55e);
+            border-bottom: 4px solid #15803d;
+            color: white;
+            font-weight: bold;
+            padding: 12px 32px;
+            border-radius: 999px;
+            font-size: 1.25rem;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            transition: all 0.1s;
+        }
+        .btn-primary:active {
+            transform: translateY(2px);
+            border-bottom-width: 0px;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. 标题区 -->
+    <div class="game-header">
+        <h1 class="text-3xl font-extrabold text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]">🐑 羊羊羊</h1>
+        <p class="text-white text-xs font-bold opacity-90 mt-1">排版修复版</p>
+    </div>
+
+    <!-- 2. 音乐开关 (右上角) -->
+    <div class="music-toggle" onclick="toggleMute()" id="musicToggle" title="开关音乐">
+        <i class="fas fa-volume-up text-gray-700 text-lg"></i>
+    </div>
+
+    <!-- 3. 游戏主舞台 -->
+    <div class="game-container" id="gameArea"></div>
+
+    <!-- 4. 底部槽位 -->
+    <div class="dock-container" id="dock"></div>
+
+    <!-- 5. 开始游戏封面 -->
+    <div class="start-screen" id="startScreen">
+        <div class="text-6xl mb-6 animate-bounce">🐑</div>
+        <h1 class="text-4xl text-white font-bold mb-8">准备好了吗？</h1>
+        <button onclick="startGame()" class="btn-primary">
+            开始游戏
+        </button>
+        <p class="text-white/60 mt-4 text-sm">点击开始将自动播放背景音乐</p>
+    </div>
+
+    <!-- 6. 结算弹窗 -->
+    <div class="modal" id="gameModal">
+        <div class="bg-white p-8 rounded-2xl text-center max-w-xs w-full border-4 border-gray-800 shadow-2xl animate-bounce-in">
+            <div id="modalIcon" class="text-7xl mb-4"></div>
+            <h2 id="modalTitle" class="text-2xl font-bold mb-2 text-gray-800"></h2>
+            <p id="modalMsg" class="text-gray-500 mb-6 font-medium"></p>
+            <button onclick="restartGame()" class="btn-primary w-full text-lg">
+                再玩一次
+            </button>
+        </div>
+    </div>
+
+    <!-- 引入JavaScript文件 -->
+    <script src="js/audio.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
